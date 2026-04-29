@@ -1,0 +1,34 @@
+###########################################
+# Syntax Coloring Map For TVEEPROM
+###########################################
+
+###########################################
+# Datatypes (KEYWORD1)
+###########################################
+
+EEPROMHelper		KEYWORD1
+PrefOneByte		KEYWORD1
+
+###########################################
+# Methods and Functions (KEYWORD2)
+###########################################
+
+# EEPROMHelper
+isBusy			KEYWORD2
+eraseByte		KEYWORD2
+eraseByteIfNotEmpty	KEYWORD2
+bitwiseAndByte		KEYWORD2
+readByte		KEYWORD2
+
+# PerfOneByte
+load			KEYWORD2
+save			KEYWORD2
+isEmpty			KEYWORD2
+cleanUpEeprom		KEYWORD2
+isSuccess		KEYWORD2
+getLastError		KEYWORD2
+
+###########################################
+# Constants (LITERAL1)
+###########################################
+EEPROM_SIZE		LITERAL1

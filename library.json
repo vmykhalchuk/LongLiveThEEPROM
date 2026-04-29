@@ -1,0 +1,15 @@
+{
+  "name": "LongLiveThEEPROM",
+  "keywords": "Data Storage, EEPROM, Preferences, Wear leveling, Configuration permanent store",
+  "description": "Library to simplify storing Preferences into EEPROM and significantly reduce EEPROM wear. Distributes wear over whole EEPROM available, increases lifespan from 100K writes to ~51M writes. Simple to use: PrefOneByte pref; uint8_t p = pref.load(); pref.save(p);",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/vmykhalchuk/LongLiveThEEPROM.git"
+  },
+  "frameworks": "arduino",
+  "platforms":
+  [
+    "atmelavr"
+  ]
+}
