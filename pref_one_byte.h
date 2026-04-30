@@ -34,28 +34,32 @@ class PrefOneByte {
   public:
 
   static constexpr auto& EMPTY_BYTE = EEPROMHelper::EMPTY_BYTE;
+
+  enum ConfigError {
+    CONFIG_OK, START_CHUNK_ERROR, CHUNK_SIZE_ERROR, END_CHUNK_ERROR, UNKNOWN_ERROR
+  };
+
+  // Default constructor assumes whole EEPROM will be used as a storage
+  PrefOneByte() {
+    _chunkSize = 1<<5;
+    _startChunk = 0;
+    _endChunk = EEPROMHelper::EEPROM_SIZE / _chunkSize - 1;
+  }
   
   // Constructor: sets the area to use for storage
-  //PrefOneByte(uint8_t chunkSizeMag, uint8_t startChunk, uint8_t endChunk);
-
   // Chunk size must be >= 8 and odd number (Assumption A01)
   // For best performance configure chunk size as close as possible to total number of chunks
   // NOTE! Never modify config without erasing destination area first!
   //       For this - use cleanUpEeprom()
-  //PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk);
-
-  /*
-  enum ConfigError {
-    CONFIG_OK, END_CHUNK_ERROR, CHUNK_SIZE_ERROR, UNKNOWN_ERROR
-  };*/
+  PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk, ConfigError &cErr);
 
   // For 1024 size 32 is recommended
   // For 4096 size 64 is recommended
   // For 16384 size 128 is recommended
-  static const uint8_t CHUNK_SIZE_MAGNITUDE = 5; // {min 3, max 8} 5 for 32, 6 for 64, 7 for 128
+  //static const uint8_t CHUNK_SIZE_MAGNITUDE = 5; // {min 3, max 8} 5 for 32, 6 for 64, 7 for 128
   
-  static const uint8_t EEPROM_STARTING_CHUNK = 0;
-  static const uint8_t EEPROM_LAST_CHUNK = EEPROMHelper::EEPROM_SIZE / (1 << CHUNK_SIZE_MAGNITUDE) - 1;
+  //static const uint8_t EEPROM_STARTING_CHUNK = 0;
+  //static const uint8_t EEPROM_LAST_CHUNK = EEPROMHelper::EEPROM_SIZE / (1 << CHUNK_SIZE_MAGNITUDE) - 1;
 
 
   enum Error { OK,
@@ -100,7 +104,7 @@ class PrefOneByte {
   // Clean EEPROM area designated for this data storage
   void cleanUpEeprom();
 
-  static const uint8_t CHUNK_SIZE = 1 << CHUNK_SIZE_MAGNITUDE;
+  //static const uint8_t CHUNK_SIZE = 1 << CHUNK_SIZE_MAGNITUDE;
 
   private:
 
@@ -110,7 +114,7 @@ class PrefOneByte {
     bool _isEmpty;
     uint8_t _cachedDataByte;
   
-    //uint8_t chunkSize = 0, uint8_t startChunk = 0, uint8_t endChunk = 0;
+    uint8_t _chunkSize = 0, _startChunk = 0, _endChunk = 0;
   
     // In case some faulty code still uses this address - the chances are it is above physical address and will not corrupt actual EEPROM
     // We use F0 not FF because when incremented by misstake by 1 or other small number - it will not overflow to 0 or some other valid address.
@@ -121,23 +125,23 @@ class PrefOneByte {
 
     static const uint8_t FAULT_DATA_VALUE = 0xFF;
 
-    static void _initError(Error &err);
-    static uint8_t _calcRedundancyByte(uint8_t dByte);
-    static void _validateAssumptionA00(Error &error);
-    static bool _isValidChunkNo(uint8_t chunkNo);
-    static bool _areValidDAndRBytes(uint8_t dByte, uint8_t rByte);
+    void _initError(Error &err);
+    uint8_t _calcRedundancyByte(uint8_t dByte);
+    void _validateAssumptionA00(Error &error);
+    bool _isValidChunkNo(uint8_t chunkNo);
+    bool _areValidDAndRBytes(uint8_t dByte, uint8_t rByte);
 
     // FIXME replace posNo with locationOffset in whole code (posNo is confusing) and location concept is described in docs
-    static uint16_t _calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t locationOffset, Error &error);
-    static void _findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLocationOffset, bool &isEEPROMEmpty, Error &error);
-    static uint8_t _readAndValidateLocation(uint8_t chunkNo, uint8_t locationOffset, Error &error);
+    uint16_t _calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t locationOffset, Error &error);
+    void _findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLocationOffset, bool &isEEPROMEmpty, Error &error);
+    uint8_t _readAndValidateLocation(uint8_t chunkNo, uint8_t locationOffset, Error &error);
 
     // 1) We do not erase first location of active chunk because it is needed to detect that chunk was busy
     // 2) FIXME: Make sure to RenderFirstLocationInvalid (this is extra safety to prevent this location from valid use)
-    static void _eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalidGoingBackward(uint8_t activeChunkNo, Error &error);
+    void _eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalidGoingBackward(uint8_t activeChunkNo, Error &error);
 
     // 1) We do not erase first byte in first chunk because it is already erased by main logic
-    static void _eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &error);
+    void _eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &error);
 
     static uint8_t _readByte(uint16_t addr) {
       return EEPROMHelper::readByte(addr);

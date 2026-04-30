@@ -49,27 +49,28 @@
 //  - Next time we have to write after last location in last chunk - we do not have to clear whole active chunk - just beginning and end
 
 
-/*PrefOneByte::PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk, ConfigError &cErr) {
+PrefOneByte::PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk, ConfigError &cErr) {
   cErr = UNKNOWN_ERROR;
-  this->chunkSize = 0; // when chunkSize == 0 - Initialization failed!
+  this->_chunkSize = 0; // when chunkSize == 0 - Initialization failed!
 
   uint16_t endChunkAddress = endChunk * chunkSize + (chunkSize - 1);
   
   if (endChunk > startChunk) {
-    cErr = END_CHUNK_ERROR;
+    cErr = START_CHUNK_ERROR;
   } else if (chunkSize < 8 || chunkSize % 2 != 0) {
     cErr = CHUNK_SIZE_ERROR;
-  } else if (endChunk * chunkSize + 1) {
+  } else if (endChunkAddress > E2END) {
+    cErr = END_CHUNK_ERROR;
   } else {
 
     // no errors
     cErr = CONFIG_OK;
-    this->startChunk = startChunk;
-    this->endChunk = endChunk;
-    this->chunkSize = chunkSize;  
+    this->_startChunk = startChunk;
+    this->_endChunk = endChunk;
+    this->_chunkSize = chunkSize;
   }
 
-}*/
+}
 
 void PrefOneByte::_initError(Error &error) {
   error = OK;
@@ -88,14 +89,9 @@ uint8_t PrefOneByte::_calcRedundancyByte(uint8_t dByte) {
 }
 
 bool PrefOneByte::_isValidChunkNo(uint8_t chunkNo) {
-  if (chunkNo > EEPROM_LAST_CHUNK) return false;
-  if (EEPROM_STARTING_CHUNK > 0) {
-    if (chunkNo < EEPROM_STARTING_CHUNK) return false;
-  }
+  if (chunkNo > _endChunk) return false;
+  if (chunkNo < _startChunk) return false;
   return true;
-  /*if (chunkNo > endChunk) return false;
-  if (chunkNo < startChunk) return false;
-  return true;*/
 }
 
 bool PrefOneByte::_areValidDAndRBytes(uint8_t dByte, uint8_t rByte) {
@@ -109,13 +105,13 @@ uint16_t PrefOneByte::_calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t l
     if (!_isValidChunkNo(chunkNo)) {
       error = E06_ALG_ERROR_ADDRESS__BAD_CHUNKNO;
     }
-    if (locationOffset > (CHUNK_SIZE - 2)) {
+    if (locationOffset > (_chunkSize - 2)) {
       error = E07_ALG_ERROR_ADDRESS__BAD_POSNO;
     }
     if (error != OK) return INVALID_ADDRESS;
   }
   
-  uint16_t address = ((uint16_t)chunkNo << CHUNK_SIZE_MAGNITUDE) | locationOffset;
+  uint16_t address = ((uint16_t)chunkNo * _chunkSize) | locationOffset;
 
   { // [SAFETY CHECK]
     // This is DataByte, not RedundancyByte, thats why we decrease lastAllowedAddress by 1 to accomodate space for Redundancy Byte
@@ -137,20 +133,20 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
   //     (NB! Or beginning of EEPROM in case nothing was written yet)
   
   { // [SAFETY CHECK] Validate configs
-    if (CHUNK_SIZE_MAGNITUDE < 3 || CHUNK_SIZE_MAGNITUDE > 8) {
+    if (_chunkSize % 8 != 0) {
       error = E01_CONFIG_ERROR;
-    } else if (EEPROM_STARTING_CHUNK > EEPROM_LAST_CHUNK) {
+    } else if (_startChunk > _endChunk) {
       error = E02_CONFIG_ERROR;
-    } else if (((EEPROM_LAST_CHUNK << CHUNK_SIZE_MAGNITUDE) + CHUNK_SIZE - 1) > E2END) {
+    } else if (((_endChunk * _chunkSize) + _chunkSize - 1) > E2END) {
       error = E03_CONFIG_ERROR;
     }
     if (error != OK) return;
   }
 
   // Find first empty ChunkNo (NB: when no empty chunks left - (EEPROM_LAST_CHUNK + 1) is returned)
-  uint8_t firstEmptyChunkNo = EEPROM_STARTING_CHUNK;
-  while (firstEmptyChunkNo <= EEPROM_LAST_CHUNK) {
-    uint16_t locationAddr = (uint16_t) firstEmptyChunkNo << CHUNK_SIZE_MAGNITUDE;
+  uint8_t firstEmptyChunkNo = _startChunk;
+  while (firstEmptyChunkNo <= _endChunk) {
+    uint16_t locationAddr = (uint16_t) firstEmptyChunkNo * _chunkSize;
     uint8_t dataByte = _readByte(locationAddr);
     uint8_t redundancyByte = _readByte(locationAddr + 1);
     if (dataByte == EMPTY_BYTE && redundancyByte == EMPTY_BYTE) {
@@ -161,10 +157,10 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
   }
   
   // Find Active Chunk
-  activeChunkNo = firstEmptyChunkNo == EEPROM_STARTING_CHUNK ? EEPROM_STARTING_CHUNK : firstEmptyChunkNo - 1;
+  activeChunkNo = firstEmptyChunkNo == _startChunk ? _startChunk : firstEmptyChunkNo - 1;
 
   // Calculate if EEPROM is Empty
-  isEEPROMEmpty = firstEmptyChunkNo == EEPROM_STARTING_CHUNK; // if Firt chunk is Empty - then whole EEPROM is Empty
+  isEEPROMEmpty = firstEmptyChunkNo == _startChunk; // if Firt chunk is Empty - then whole EEPROM is Empty
 
   { // [SAFETY CHECK]
     if (!_isValidChunkNo(activeChunkNo)) {
@@ -178,8 +174,8 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
     activeLocationOffset = 0;
   } else {
     uint8_t firstFreeLocationOffset = 0;
-    uint16_t chunkStart = (uint16_t) activeChunkNo << CHUNK_SIZE_MAGNITUDE;
-    while (firstFreeLocationOffset < CHUNK_SIZE) {
+    uint16_t chunkStart = (uint16_t) activeChunkNo * _chunkSize;
+    while (firstFreeLocationOffset < _chunkSize) {
       uint8_t dataByte = _readByte(chunkStart + firstFreeLocationOffset);
       uint8_t redundancyByte = _readByte(chunkStart + firstFreeLocationOffset + 1);
       if (dataByte == EMPTY_BYTE && redundancyByte == EMPTY_BYTE) {
@@ -194,7 +190,7 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
   }
 
   { // [SAFETY CHECK] Validate activePosNo
-    if (activeLocationOffset > (CHUNK_SIZE - 2)) {
+    if (activeLocationOffset > (_chunkSize - 2)) {
       error = E05_ALG_ERROR;
       return;
     }
@@ -245,7 +241,7 @@ uint8_t PrefOneByte::load(bool &isEEPROMEmpty, Error &error) {
 
 void PrefOneByte::_eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalidGoingBackward(uint8_t activeChunkNo, Error &error) {
 
-  uint8_t locOffset = CHUNK_SIZE - 2;
+  uint8_t locOffset = _chunkSize - 2;
   while (true) {
     
     uint16_t dAddr = _calcAndValidateDataByteAddress(activeChunkNo, locOffset, error);
@@ -308,7 +304,7 @@ void PrefOneByte::_eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalid
 
 void PrefOneByte::_eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &error) {
   
-  uint8_t chunkNo = EEPROM_LAST_CHUNK;
+  uint8_t chunkNo = _endChunk;
   while (true) {
     
     uint16_t dAddr = _calcAndValidateDataByteAddress(chunkNo, 0, error);
@@ -342,7 +338,7 @@ void PrefOneByte::_eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &erro
       if (rByte != EMPTY_BYTE) _eraseByte(rAddr);
     }
 
-    if (chunkNo == EEPROM_STARTING_CHUNK) {
+    if (chunkNo == _startChunk) {
       break;
     } else {
       chunkNo--;
@@ -381,7 +377,7 @@ bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
   uint8_t targetLocationOffset;
   if (isEEPROMEmpty) {
     targetLocationOffset = 0;
-  } else if (activeLocationOffset == CHUNK_SIZE - 2) {
+  } else if (activeLocationOffset == _chunkSize - 2) {
     // end of Chunk reached
     eraseActiveChunkNeeded = true;
     targetLocationOffset = 0;
@@ -393,10 +389,10 @@ bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
   bool eraseWholeNeeded = false;
   uint8_t targetChunkNo = activeChunkNo;
   if (eraseActiveChunkNeeded) {
-    if (activeChunkNo == EEPROM_LAST_CHUNK) {
+    if (activeChunkNo == _endChunk) {
       // end of EEPROM reached (defined in config)
       eraseWholeNeeded = true;
-      targetChunkNo = EEPROM_STARTING_CHUNK;
+      targetChunkNo = _startChunk;
     } else {
       targetChunkNo = activeChunkNo + 1;
     }
@@ -458,9 +454,9 @@ bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
 }
 
 void PrefOneByte::cleanUpEeprom() {
-  for (uint8_t chunkNo = EEPROM_STARTING_CHUNK; chunkNo <= EEPROM_LAST_CHUNK; chunkNo++) {
-    uint16_t chunkAddress = chunkNo << CHUNK_SIZE_MAGNITUDE;
-    for (uint8_t j = 0; j < CHUNK_SIZE; j++) {
+  for (uint8_t chunkNo = _startChunk; chunkNo <= _endChunk; chunkNo++) {
+    uint16_t chunkAddress = chunkNo * _chunkSize;
+    for (uint8_t j = 0; j < _chunkSize; j++) {
       EEPROMHelper::eraseByteIfNotEmpty(chunkAddress + j);
     }
   }
