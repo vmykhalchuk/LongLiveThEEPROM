@@ -31,12 +31,12 @@ void setup() {
   Serial.print("Preferences #2 loaded: "); Serial.println(pref2Byte, HEX);
 
   // Modify preferences here
-  if (pref1Byte == 0xFF) { // it was empty
+  if (preferences1.isEmpty()) { // it was empty
     pref1Byte = 0x10; // set to default config
   }
   
   // Modify preferences here
-  if (pref2Byte == 0xFF) { // it was empty
+  if (preferences2.isEmpty()) { // it was empty
     pref2Byte = 0x20; // set to default config
   }
 

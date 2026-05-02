@@ -49,22 +49,22 @@
 //  - Next time we have to write after last location in last chunk - we do not have to clear whole active chunk - just beginning and end
 
 
-PrefOneByte::PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk, ConfigError &cErr) {
-  cErr = UNKNOWN_ERROR;
+PrefOneByte::PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk) {
+  _configError = UNKNOWN_ERROR; // when _configError != CONFIG_OK - all methods will return INIT_ERROR
   this->_chunkSize = 0; // when chunkSize == 0 - Initialization failed!
 
   uint16_t endChunkAddress = endChunk * chunkSize + (chunkSize - 1);
   
   if (endChunk > startChunk) {
-    cErr = START_CHUNK_ERROR;
-  } else if (chunkSize < 8 || chunkSize % 2 != 0) {
-    cErr = CHUNK_SIZE_ERROR;
+    _configError = START_CHUNK_ERROR;
+  } else if (chunkSize % 8 != 0) {
+    _configError = CHUNK_SIZE_ERROR;
   } else if (endChunkAddress > E2END) {
-    cErr = END_CHUNK_ERROR;
+    _configError = END_CHUNK_ERROR;
   } else {
 
     // no errors
-    cErr = CONFIG_OK;
+    _configError = CONFIG_OK;
     this->_startChunk = startChunk;
     this->_endChunk = endChunk;
     this->_chunkSize = chunkSize;
@@ -72,14 +72,10 @@ PrefOneByte::PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk
 
 }
 
-void PrefOneByte::_initError(Error &error) {
-  error = OK;
-}
-
 void PrefOneByte::_validateAssumptionA00(Error &error) {
   // [SAFETY CHECK/OPTIONAL] Read/Write code assumes that redundancy byte is following:
   if (_calcRedundancyByte(0x00) != 0xFF || _calcRedundancyByte(0xFF) != 0x00) {
-    error = E11_WRITE_ALG_ERR_2;
+    error = E12_WRITE_ALG_ERR_2;
     return;
   }
 }
@@ -103,10 +99,10 @@ uint16_t PrefOneByte::_calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t l
 
   { // [SAFETY CHECK] VALIDATE input data
     if (!_isValidChunkNo(chunkNo)) {
-      error = E06_ALG_ERROR_ADDRESS__BAD_CHUNKNO;
+      error = E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO;
     }
     if (locationOffset > (_chunkSize - 2)) {
-      error = E07_ALG_ERROR_ADDRESS__BAD_POSNO;
+      error = E08_ALG_ERROR_ADDRESS__BAD_POSNO;
     }
     if (error != OK) return INVALID_ADDRESS;
   }
@@ -117,7 +113,7 @@ uint16_t PrefOneByte::_calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t l
     // This is DataByte, not RedundancyByte, thats why we decrease lastAllowedAddress by 1 to accomodate space for Redundancy Byte
     uint16_t lastAllowedAddress = (E2END - 1);
     if (address > lastAllowedAddress) {
-      error = E08_ALG_ERROR_BAD_ADDRESS;
+      error = E09_ALG_ERROR_BAD_ADDRESS;
       return INVALID_ADDRESS;
     }
   }
@@ -134,11 +130,11 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
   
   { // [SAFETY CHECK] Validate configs
     if (_chunkSize % 8 != 0) {
-      error = E01_CONFIG_ERROR;
+      error = E02_CONFIG_ERROR_1;
     } else if (_startChunk > _endChunk) {
-      error = E02_CONFIG_ERROR;
+      error = E03_CONFIG_ERROR_2;
     } else if (((_endChunk * _chunkSize) + _chunkSize - 1) > E2END) {
-      error = E03_CONFIG_ERROR;
+      error = E04_CONFIG_ERROR_3;
     }
     if (error != OK) return;
   }
@@ -164,7 +160,7 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
 
   { // [SAFETY CHECK]
     if (!_isValidChunkNo(activeChunkNo)) {
-      error = E04_ALG_ERROR;
+      error = E05_ALG_ERROR_1;
       return;
     }
   }
@@ -191,7 +187,7 @@ void PrefOneByte::_findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLoc
 
   { // [SAFETY CHECK] Validate activePosNo
     if (activeLocationOffset > (_chunkSize - 2)) {
-      error = E05_ALG_ERROR;
+      error = E06_ALG_ERROR_2;
       return;
     }
   }
@@ -213,15 +209,19 @@ uint8_t PrefOneByte::_readAndValidateLocation(uint8_t chunkNo, uint8_t locationO
     uint8_t dByte = _readByte(dAddr);
     uint8_t rByte = _readByte(dAddr + 1);
     if (!_areValidDAndRBytes(dByte, rByte)) {
-      error = E09_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR;
+      error = E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR;
     }
     
     return error == OK ? dByte : FAULT_DATA_VALUE;
   }
 }
 
-uint8_t PrefOneByte::load(bool &isEEPROMEmpty, Error &error) {
-  _initError(error);
+uint8_t PrefOneByte::_load(bool &isEEPROMEmpty, Error &error) {
+  if (_configError != CONFIG_OK) {
+    error = E01_INIT_ERROR;
+    return FAULT_DATA_VALUE;
+  }
+  error = OK;
   
   // [SAFETY CHECK/OPTIONAL]
   _validateAssumptionA00(error);
@@ -253,7 +253,7 @@ void PrefOneByte::_eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalid
 
     // [SAFETY CHECK]
     if (!_areValidDAndRBytes(dByte, rByte)) {
-      error = E12_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1;
+      error = E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1;
       return;
     }
 
@@ -281,7 +281,7 @@ void PrefOneByte::_eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalid
         uint8_t dByte = _readByte(dAddr);
         uint8_t rByte = _readByte(rAddr);
         if (_areValidDAndRBytes(dByte, rByte)) {
-          error = E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2;
+          error = E14_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2;
           return;
         }
       }
@@ -316,18 +316,18 @@ void PrefOneByte::_eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &erro
 
     // [SAFETY CHECK] We expect location to be invalid (this is old location, not active)
     if (_areValidDAndRBytes(dByte, rByte)) {
-      error = E14_ERASE_WHOLE_CORRUPTED_1;
+      error = E15_ERASE_WHOLE_CORRUPTED_1;
       return;
     }
 
     if (dByte == EMPTY_BYTE && rByte == EMPTY_BYTE) {
       // something strange here, should be invalid location, not empty
-      error = E15_ERASE_WHOLE_CORRUPTED_2;
+      error = E16_ERASE_WHOLE_CORRUPTED_2;
       return;
       
     } else if (dByte != EMPTY_BYTE && rByte != EMPTY_BYTE) {
       // looks like some logic failed - we need to erase both bytes which is unexpected!
-      error = E16_ERASE_WHOLE_CORRUPTED_3;
+      error = E17_ERASE_WHOLE_CORRUPTED_3;
       return;
       
     } else {
@@ -347,8 +347,12 @@ void PrefOneByte::_eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &erro
 
 }
 
-bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
-  _initError(error);
+bool PrefOneByte::_save(const uint8_t newDataByte, Error &error) {
+  if (_configError != CONFIG_OK) {
+    error = E01_INIT_ERROR;
+    return false;
+  }
+  error = OK;
   
   // [SAFETY CHECK/OPTIONAL]
   _validateAssumptionA00(error);
@@ -436,7 +440,7 @@ bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
       const uint8_t targetDataByte = _readByte(targetAddress);
       const uint8_t targetRedundancyByte = _readByte(targetAddress + 1);
       if (targetDataByte != EMPTY_BYTE || targetRedundancyByte != EMPTY_BYTE) {
-        error = E10_WRITE_ALG_ERR_1; // FIXME This is either EEPROM Corruption or ALG error
+        error = E11_WRITE_ALG_ERR_1; // FIXME This is either EEPROM Corruption or ALG error
         return false;
       }
     }
@@ -453,18 +457,21 @@ bool PrefOneByte::save(const uint8_t newDataByte, Error &error) {
   return true;
 }
 
-void PrefOneByte::cleanUpEeprom() {
+bool PrefOneByte::eraseStorage() {
+  if (_configError != CONFIG_OK) return false;
+  
   for (uint8_t chunkNo = _startChunk; chunkNo <= _endChunk; chunkNo++) {
     uint16_t chunkAddress = chunkNo * _chunkSize;
     for (uint8_t j = 0; j < _chunkSize; j++) {
       EEPROMHelper::eraseByteIfNotEmpty(chunkAddress + j);
     }
   }
+  return true;
 }
 
 uint8_t PrefOneByte::load() {
   if (!_initialized) {
-    _cachedDataByte = load(_isEmpty, _lastError);
+    _cachedDataByte = _load(_isEmpty, _lastError);
     _initialized = true;
   }
   return _cachedDataByte;
@@ -478,8 +485,6 @@ bool PrefOneByte::isEmpty() {
 }
 
 bool PrefOneByte::save(const uint8_t dataByte) {
-  _initialized = false; // force reload
-  uint8_t pref = save(dataByte, _lastError);
-  if (!isSuccess()) return pref;
-  return load();
+  _initialized = false;
+  return _save(dataByte, _lastError);
 }

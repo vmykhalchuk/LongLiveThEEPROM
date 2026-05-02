@@ -23,9 +23,9 @@
       _printBeginningOfLine();                        \
       Serial.print("Assertion Failed: ");             \
       Serial.print(". Expected 0x");                  \
-      Serial.print(expected);                         \
+      Serial.print(expected, HEX);                    \
       Serial.print(" but found 0x");                  \
-      Serial.println(actual);                         \
+      Serial.println(actual, HEX);                    \
       TERMINATE_MACRO;                                \
     }
 

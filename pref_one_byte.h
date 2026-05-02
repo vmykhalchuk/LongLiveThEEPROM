@@ -30,18 +30,29 @@
 // Library currently supports up to 32KB EEPROM (see INVALID_ADDRESS constant for details on why)
 
 class PrefOneByte {
-  
+
   public:
 
   static constexpr auto& EMPTY_BYTE = EEPROMHelper::EMPTY_BYTE;
 
   enum ConfigError {
-    CONFIG_OK, START_CHUNK_ERROR, CHUNK_SIZE_ERROR, END_CHUNK_ERROR, UNKNOWN_ERROR
+    CONFIG_OK, START_CHUNK_ERROR, CHUNK_SIZE_ERROR, END_CHUNK_ERROR, UNIMPLEMENTED, UNKNOWN_ERROR
   };
 
   // Default constructor assumes whole EEPROM will be used as a storage
   PrefOneByte() {
-    _chunkSize = 1<<5;
+    const uint16_t es = EEPROMHelper::EEPROM_SIZE;
+    _configError = CONFIG_OK;
+    switch (es) {
+      case 256:   _chunkSize = 16; break;
+      case 512:   _chunkSize = 24; break;
+      case 1024:  _chunkSize = 32; break;
+      case 2048:  _chunkSize = 48; break;
+      case 4096:  _chunkSize = 64; break;
+      default:
+        _configError = UNIMPLEMENTED;
+        return;
+    }
     _startChunk = 0;
     _endChunk = EEPROMHelper::EEPROM_SIZE / _chunkSize - 1;
   }
@@ -51,7 +62,7 @@ class PrefOneByte {
   // For best performance configure chunk size as close as possible to total number of chunks
   // NOTE! Never modify config without erasing destination area first!
   //       For this - use cleanUpEeprom()
-  PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk, ConfigError &cErr);
+  PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk);
 
   // For 1024 size 32 is recommended
   // For 4096 size 64 is recommended
@@ -63,30 +74,26 @@ class PrefOneByte {
 
 
   enum Error { OK,
-                E01_CONFIG_ERROR, E02_CONFIG_ERROR, E03_CONFIG_ERROR,
-                E04_ALG_ERROR, E05_ALG_ERROR,
-                E06_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E07_ALG_ERROR_ADDRESS__BAD_POSNO, E08_ALG_ERROR_BAD_ADDRESS,
-                E09_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
-                E10_WRITE_ALG_ERR_1,
-                E11_WRITE_ALG_ERR_2,
-                E12_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1,
-                E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
-                E14_ERASE_WHOLE_CORRUPTED_1,
-                E15_ERASE_WHOLE_CORRUPTED_2,
-                E16_ERASE_WHOLE_CORRUPTED_3
+                E01_INIT_ERROR,
+                E02_CONFIG_ERROR_1, E03_CONFIG_ERROR_2, E04_CONFIG_ERROR_3,
+                E05_ALG_ERROR_1, E06_ALG_ERROR_2,
+                E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E08_ALG_ERROR_ADDRESS__BAD_POSNO, E09_ALG_ERROR_BAD_ADDRESS,
+                E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
+                E11_WRITE_ALG_ERR_1,
+                E12_WRITE_ALG_ERR_2,
+                E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1,
+                E14_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
+                E15_ERASE_WHOLE_CORRUPTED_1,
+                E16_ERASE_WHOLE_CORRUPTED_2,
+                E17_ERASE_WHOLE_CORRUPTED_3
              };
 
-  // Reads latest `active` Data Byte, returns 0xFF if no data present in EEPROM yet or error occurs.
-  uint8_t load(bool &isEEPROMEmpty, Error &error);
 
   // Read latest `active` Data Byte, returns 0xFF
   uint8_t load();
 
   // Validate if EEPROM isEmpty
   bool isEmpty();
-
-  // Save preferences
-  bool save(const uint8_t dataByte, Error &error);
 
   // Save preferences
   bool save(const uint8_t dataByte);
@@ -101,13 +108,20 @@ class PrefOneByte {
     return _lastError;
   }
 
-  // Clean EEPROM area designated for this data storage
-  void cleanUpEeprom();
+  // Erase this preference storage area in EEPROM
+  // Use after configuration changed and EEPROM is not empty
+  bool eraseStorage();
 
   //static const uint8_t CHUNK_SIZE = 1 << CHUNK_SIZE_MAGNITUDE;
 
   private:
 
+    // Reads latest `active` Data Byte, returns 0xFF if no data present in EEPROM yet or error occurs.
+    uint8_t _load(bool &isEEPROMEmpty, Error &error);
+    // Save preferences
+    bool _save(const uint8_t dataByte, Error &error);
+
+    ConfigError _configError;
     Error _lastError = OK;
 
     bool _initialized = false;
@@ -125,7 +139,6 @@ class PrefOneByte {
 
     static const uint8_t FAULT_DATA_VALUE = 0xFF;
 
-    void _initError(Error &err);
     uint8_t _calcRedundancyByte(uint8_t dByte);
     void _validateAssumptionA00(Error &error);
     bool _isValidChunkNo(uint8_t chunkNo);

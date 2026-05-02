@@ -24,9 +24,9 @@ readByte		KEYWORD2
 load			KEYWORD2
 save			KEYWORD2
 isEmpty			KEYWORD2
-cleanUpEeprom		KEYWORD2
 isSuccess		KEYWORD2
 getLastError		KEYWORD2
+eraseStorage		KEYWORD2
 
 ###########################################
 # Constants (LITERAL1)

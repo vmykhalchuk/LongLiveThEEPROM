@@ -4,10 +4,6 @@
 
 #include "utest.h"
 
-PrefOneByte config1;
-
-PrefOneByte::Error error;
-
 void setup() {
   Serial.begin(9600);
   Serial.println("  Started!");
@@ -28,6 +24,10 @@ void setup() {
 
   Serial.println("  testSimplifiedMethods");
   testSimplifiedMethods();
+  UTest::eraseEEPROM();
+
+  Serial.println("  testSimplifiedMethods");
+  testFaultyConfig();
   UTest::eraseEEPROM();
 
   // 1) Write first value as 0x00 - make sure byte0 is 0x00 and byte 1 is 0xFF
@@ -70,60 +70,76 @@ void setup() {
 }
 
 void testHappyScenario() {
+  PrefOneByte config1;
   bool success;
-  bool isEEPROMEmpty;
 
   // Read and verify that EEPROM is empty
-  uint8_t data = config1.load(isEEPROMEmpty, error);
-  _assertEquals(PrefOneByte::OK, error);
-  _assertTrue(isEEPROMEmpty);
+  uint8_t data = config1.load();
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertTrue(config1.isEmpty());
 
   // Write value as 0x11
-  success = config1.save(0x11, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x11);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // Write value as 0x22
-  success = config1.save(0x22, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x22);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // Read value back
-  data = config1.load(isEEPROMEmpty, error);
-  _assertEquals(PrefOneByte::OK, error);
-  _assertFalse(isEEPROMEmpty);
+  data = config1.load();
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertFalse(config1.isEmpty());
   _assertEquals(0x22, data);
   
 }
 
 void testSimplifiedMethods() {
+  PrefOneByte config1;
   uint8_t conf = config1.load();
-  _assertEquals(0xFF, conf);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(config1.isSuccess());
   _assertTrue(config1.isEmpty());
+  _assertEquals(0xFF, conf);
 
   bool res = config1.save(0x11);
-  _assertTrue(res);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(config1.isSuccess());
+  _assertTrue(res);
   
   conf = config1.load();
-  _assertEquals(0x11, conf);
   _assertTrue(config1.isSuccess());
   _assertFalse(config1.isEmpty());
+  _assertEquals(0x11, conf);
+}
+
+void testFaultyConfig() {
+  PrefOneByte pref1(63, 0, 123);
+  uint8_t p = pref1.load();
+  _assertFalse(pref1.isSuccess());
+  _assertEquals(PrefOneByte::E01_INIT_ERROR, pref1.getLastError());
+  _assertEquals(0xFF, p);
+
+  pref1.save(0x01);
+  _assertFalse(pref1.isSuccess());
+  _assertEquals(PrefOneByte::E01_INIT_ERROR, pref1.getLastError());
 }
 
 void testInactiveChunkFirstLocationIsInvalidatedWithItsValueEqual0x00() {
+  PrefOneByte config1;
   bool success;
-  success = config1.save(0x00, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x00);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
   
   _assertEEPROMByteEquals(0, 0x00);
   _assertEEPROMByteEquals(1, 0xFF);
 
   for (uint8_t i = 1; i <= 16; i++) {
-    success = config1.save(i, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(i);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
@@ -137,6 +153,7 @@ void testInactiveChunkFirstLocationIsInvalidatedWithItsValueEqual0x00() {
 }
 
 void testEveryFirstLocationInInactiveChunkIsInvalidAndAtLeastOneByteIsEmpty() {
+  PrefOneByte config1;
   bool success;
 
   // will test first chunk
@@ -145,8 +162,8 @@ void testEveryFirstLocationInInactiveChunkIsInvalidAndAtLeastOneByteIsEmpty() {
   // now will test Second chunk
 
   for (uint8_t i = 1; i <= 16; i++) {
-    success = config1.save(i, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(i);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
@@ -162,8 +179,8 @@ void testEveryFirstLocationInInactiveChunkIsInvalidAndAtLeastOneByteIsEmpty() {
   // now will test Third chunk
 
   for (uint8_t i = 1; i <= 16; i++) {
-    success = config1.save(i, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(i);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
@@ -177,20 +194,21 @@ void testEveryFirstLocationInInactiveChunkIsInvalidAndAtLeastOneByteIsEmpty() {
 }
 
 void testWritingSameValueMultipleTimes() {
+  PrefOneByte config1;
   // prepare
   testHappyScenario();
 
   bool success;
 
   // Write value as 0x77
-  success = config1.save(0x77, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x77);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // repeat writing same value 5 more times
   for (int i = 0; i < 5; i++) {
-    success = config1.save(0x77, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(0x77);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
@@ -208,51 +226,51 @@ void testWritingSameValueMultipleTimes() {
 
 // test 0x00 and 0xFF
 void testWritingCornerValue(uint8_t cornerValue) {
+  PrefOneByte config1;
   // Makes sure writing corner value doesn't break retrieve logic
   bool success;
   
-  success = config1.save(0x21, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x21);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
-  success = config1.save(0x22, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x22);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // Write <cornerValue>
-  success = config1.save(cornerValue, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(cornerValue);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // write another value and check if its not <cornerValue> by any chance
-  success = config1.save(0x23, error);
-  _assertEquals(PrefOneByte::OK, error);
+  success = config1.save(0x23);
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
   _assertTrue(success);
 
   // test last stored value
   // Might be that corner value breaks logic
-  bool isEEPROMEmpty;
-  uint8_t data = config1.load(isEEPROMEmpty, error);
-  _assertEquals(PrefOneByte::OK, error);
-  _assertFalse(isEEPROMEmpty);
+  uint8_t data = config1.load();
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertFalse(config1.isEmpty());
   _assertEquals(0x23, data);
 }
 
 void testWritingFull() {
+  PrefOneByte config1;
   bool success;
 
   // write whole EEPROM of ram
   for (int i = 0; i < 512; i++) {
-    success = config1.save(i % 64, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(i % 64);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
   // assert read succeeds
-  bool isEEPROMEmpty;
-  uint8_t data = config1.load(isEEPROMEmpty, error);
-  _assertEquals(PrefOneByte::OK, error);
-  _assertFalse(isEEPROMEmpty);
+  uint8_t data = config1.load();
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertFalse(config1.isEmpty());
   _assertEquals((511 % 64), data);
   
   // FIXME Test memory
@@ -265,6 +283,7 @@ void testWritingFull() {
 }
 
 void testWritingAfterIsFull() {
+  PrefOneByte config1;
   // write full
   testWritingFull();
 
@@ -272,16 +291,15 @@ void testWritingAfterIsFull() {
   
   // write few times
   for (int i = 1; i <= 3; i++) {
-    success = config1.save(30+i, error);
-    _assertEquals(PrefOneByte::OK, error);
+    success = config1.save(30+i);
+    _assertEquals(PrefOneByte::OK, config1.getLastError());
     _assertTrue(success);
   }
 
   // assert read succeeds
-  bool isEEPROMEmpty;
-  uint8_t data = config1.load(isEEPROMEmpty, error);
-  _assertEquals(PrefOneByte::OK, error);
-  _assertFalse(isEEPROMEmpty);
+  uint8_t data = config1.load();
+  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertFalse(config1.isEmpty());
   _assertEquals(33, data);
 
   // assert EEPROM is empty

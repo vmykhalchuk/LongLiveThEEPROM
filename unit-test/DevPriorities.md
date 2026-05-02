@@ -1,15 +1,23 @@
 ## EISENHOWER MATRIX
 
 ### URGENT: IMPORTANT
-  
-  * Modify to store not single but flexible number of bytes
+
+  * Add unit tests covering all AVR MCUs
+
+### URGENT: NOT IMPORTANT
+
 
 ### NOT URGENT : IMPORTANT
  
   * Add Examples
-    * Simple example to configure 1 Byte storage only
+    * Simple example to configure 1 Byte storage
     * Example to configure multiple 1 Byte storages
     * Example to clean-up EEPROM (when configuration change is needed)
+
+  * PERF OPTIM: When advancing to next location - invalidate previous one
+       this will reduce number of erase instructions required to clean active chunk
+
+  * Modify to store not single but configurable number of bytes
 
   * Fix simavr bug where it doesn't erase byte to 0xFF instead it writes value stored in EEDR register
     * it is handled by https://github.com/buserror/simavr/blob/master/simavr/sim/avr_eeprom.c
@@ -17,15 +25,14 @@
     * see code: if (eempe && avr_regbit_get(avr, p->eepe)) {	// write operation
        it always takes 3.4ms, see delay below
 
-### URGENT: NOT IMPORTANT
-
 
 ### NOT URGENT : NOT IMPORTANT
 
-  * Consider other name for PerfOneByte (ConfigStoreEEPROM)
-  * PERF OPTIM: When advancing to next location - invalidate previous one
-       this will reduce number of erase instructions required to clean active chunk
+  * Add validation to check if registered Pref storages do not overlap
+  * Make compiler use static resolution at comile time to config pref storages (to avoid use of RAM)
+
+  * Consider other name for PrefOneByte (ConfigStoreEEPROM)
 
   * Implement Unit Testing for Bare metal
-    * replace tv_eeprom.cpp with dummy implementation in RAM
+    * replace eeprom_helper.cpp with dummy implementation in RAM
     * output test results to Serial
