@@ -19,13 +19,13 @@
 #endif
 
 #define _assertEquals(expected, actual)               \
-    if (expected != actual) {                         \
+    if ((expected) != (actual)) {                     \
       _printBeginningOfLine();                        \
       Serial.print("Assertion Failed: ");             \
       Serial.print(". Expected 0x");                  \
-      Serial.print(expected, HEX);                    \
+      Serial.print((expected), HEX);                  \
       Serial.print(" but found 0x");                  \
-      Serial.println(actual, HEX);                    \
+      Serial.println((actual), HEX);                  \
       TERMINATE_MACRO;                                \
     }
 
@@ -37,12 +37,12 @@
  */
 #define _assertEEPROMByteEquals(address, expected) {    \
   uint8_t actual = EEPROM.read((uint16_t)address);      \
-  if (actual != (uint8_t) expected) {                   \
+  if (actual != (uint8_t) (expected)) {                 \
     _printBeginningOfLine();                            \
     Serial.print("Assertion Failed: Address 0x");       \
     Serial.print(address, HEX);                         \
     Serial.print(" expected 0x");                       \
-    Serial.print(expected, HEX);                        \
+    Serial.print((expected), HEX);                      \
     Serial.print(" but found 0x");                      \
     Serial.println(actual, HEX);                        \
     TERMINATE_MACRO;                                    \
@@ -54,11 +54,11 @@
  */
 #define _assertEEPROMByteNotEquals(address, value) {    \
   uint8_t actual = EEPROM.read((uint16_t)address);      \
-  if (actual == (uint8_t) value) {                      \
+  if (actual == (uint8_t) (value)) {                    \
     _printBeginningOfLine();                            \
     Serial.print("Assertion Failed: Address 0x");       \
     Serial.print(address, HEX);                         \
-    Serial.print(" NOT expected 0x");                   \
+    Serial.print(" Expected <other> but found: 0x");    \
     Serial.println(actual, HEX);                        \
     TERMINATE_MACRO;                                    \
   }                                                     \
@@ -82,15 +82,15 @@
 #define _assertEEPROMRangeHasSameValue(addressStart,    \
               bytes, value) {                           \
   uint16_t addr = addressStart;                         \
-  for (uint16_t i = 0; i < (uint8_t)bytes; i++) {       \
+  for (uint16_t i = 0; i < (uint16_t)bytes; i++) {      \
     uint8_t actual = EEPROM.read(addr + i);             \
-    if (actual != (uint8_t) value) {                    \
+    if (actual != (uint8_t) (value)) {                  \
       _printBeginningOfLine();                          \
       Serial.print("Assertion Failed: ");               \
       Serial.print("Range Error at 0x");                \
       Serial.print(addressStart + i, HEX);              \
       Serial.print(". Expected 0x");                    \
-      Serial.print(value, HEX);                         \
+      Serial.print((value), HEX);                       \
       Serial.print(" but found 0x");                    \
       Serial.println(actual, HEX);                      \
       TERMINATE_MACRO;                                  \
@@ -104,9 +104,9 @@
 #define _assertEEPROMRangeHasOtherButValue(addressStart,\
               bytes, value) {                           \
   uint16_t addr = addressStart;                         \
-  for (uint16_t i = 0; i < (uint8_t)bytes; i++) {       \
+  for (uint16_t i = 0; i < (uint16_t)bytes; i++) {      \
     uint8_t actual = EEPROM.read(addr + i);             \
-    if (actual == (uint8_t) value) {                    \
+    if (actual == (uint8_t) (value)) {                  \
       _printBeginningOfLine();                          \
       Serial.print("Assertion Failed: ");               \
       Serial.print("Range Error at 0x");                \
@@ -138,6 +138,7 @@ class UTest {
     static void dumpEEPROMToSerial(uint16_t limit);
 
     static void terminateSimAvrSimulation();
+    static void terminateSimAvrSimulationV2();
 
     // exitCode 0 - All OK
     static void terminateSimulation(int exitCode);

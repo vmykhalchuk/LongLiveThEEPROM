@@ -2,11 +2,11 @@
 
 # Configuration
 HEX_FILE="$1"
-MCU="atmega328p"
 FREQ="16000000"
 LOG_FILE="$2"
 EXIT_STR="$3"
 FAIL_STR="$4"
+MCU="$5"
 
 terminate_sim() {
   local message=$1

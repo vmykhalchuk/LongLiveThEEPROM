@@ -8,6 +8,8 @@
 
 
 ### NOT URGENT : IMPORTANT
+
+  * Put code on diet (add macros to disable safety checks)
  
   * Add Examples
     * Simple example to configure 1 Byte storage

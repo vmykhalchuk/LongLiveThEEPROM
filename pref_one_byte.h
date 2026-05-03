@@ -19,153 +19,164 @@
 #include <Arduino.h>
 #include "eeprom_helper.h"
 
-// Functions that store 1 Byte of data in EEPROM utilizing defined area to reduce wear by cycling new values over the area.
+// Persistent Storage that stores 1 Byte of data in EEPROM utilizing defined area to reduce wear by cycling new values over the defined EEPROM area.
 //
 // DBYTE (Data Byte) is written cyclicly over free area.
 // It is written as two bytes - one as is (DBYTE) and second is Redundance Byte RBYTE=(~DBYTE) to later validate for EEPROM corruptions.
 //
-// It is possible to define that only part of EEPROM is used for this storage by modifying EEPROM_STARTING_CHUNK and EEPROM_LAST_CHUNK (and CHUNK_SIZE_MAGNITUDE).
+// It is possible to define that only part of EEPROM is used for this storage with help of parameterized constructor.
 // NB: Make sure to erase EEPROM when config changes to avoid library failures
 
-// Library currently supports up to 32KB EEPROM (see INVALID_ADDRESS constant for details on why)
+// 0 - No Safety net
+// 1 - Optional checks
+// 2 - Algorithmic checks (they are covered by Unit tests and general testing)
+// 3 - Paranoic checks (for absolute realiability - not to mess with EEPROM)
+static constexpr uint8_t PREF_ONE_BYTE_SAFETY_CHECK_LEVEL = 2;
 
-class PrefOneByte {
+class PrefOneByte final {
 
   public:
 
-  static constexpr auto& EMPTY_BYTE = EEPROMHelper::EMPTY_BYTE;
+    static constexpr auto& EMPTY_VALUE = EEPROMHelper::EMPTY_VALUE;
+  
+    enum ConfigError {
+      CONFIG_OK, CE_START_CHUNK_ERROR, CE_CHUNK_SIZE_ERROR, CE_END_CHUNK_ERROR, CE_ASSUMPTION_FAILS, CE_UNIMPLEMENTED, CE_UNKNOWN_ERROR
+    };
+  
+    enum Error { OK,
+                  E01_CONFIG_ERROR,
+                  E02_CONFIG_ERROR_1, E03_CONFIG_ERROR_2, E04_CONFIG_ERROR_3,
+                  E05_ALG_ERROR_1, E06_ALG_ERROR_2,
+                  E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E08_ALG_ERROR_ADDRESS__BAD_LOCATION_OFFSET, E09_ALG_ERROR_BAD_ADDRESS,
+                  E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
+                  E11_WRITE_ALG_ERR_1,
+                  E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1, // FIXME
+                  E14_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
+                  E15_ERASE_WHOLE_CORRUPTED_1,
+                  E16_ERASE_WHOLE_CORRUPTED_2,
+                  E17_ERASE_WHOLE_CORRUPTED_3,
+                  Exx_ADDR_OUT_OF_RANGE
+               };
 
-  enum ConfigError {
-    CONFIG_OK, START_CHUNK_ERROR, CHUNK_SIZE_ERROR, END_CHUNK_ERROR, UNIMPLEMENTED, UNKNOWN_ERROR
-  };
-
-  // Default constructor assumes whole EEPROM will be used as a storage
-  PrefOneByte() {
-    const uint16_t es = EEPROMHelper::EEPROM_SIZE;
-    _configError = CONFIG_OK;
-    switch (es) {
-      case 256:   _chunkSize = 16; break;
-      case 512:   _chunkSize = 24; break;
-      case 1024:  _chunkSize = 32; break;
-      case 2048:  _chunkSize = 48; break;
-      case 4096:  _chunkSize = 64; break;
-      default:
-        _configError = UNIMPLEMENTED;
-        return;
+    // Default constructor assumes whole EEPROM will be used as a storage
+    PrefOneByte();
+    
+    // Constructor: sets the area to use for storage
+    // Chunk size must be >= 8 and odd number (Assumption A01)
+    // For best performance configure chunk size as close as possible to total number of chunks
+    // NOTE! Never modify config without erasing destination area first!
+    //       For this - use cleanUpEeprom()
+    PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk);
+  
+    // Read latest `active` Data Byte,
+    // returns 0xFF if EEPROM is empty
+    uint8_t load();
+  
+    // Check if EEPROM isEmpty
+    bool isEmpty();
+  
+    // Save preferences
+    bool save(const uint8_t dataByte);
+  
+    // Check if last operation succeeded
+    bool isSuccess() {
+      return _lastError == OK;
     }
-    _startChunk = 0;
-    _endChunk = EEPROMHelper::EEPROM_SIZE / _chunkSize - 1;
-  }
+
+    // Returns Config Error (when wrong Constructor parameters provided)
+    ConfigError getConfigError() {
+      return _configError;
+    }
   
-  // Constructor: sets the area to use for storage
-  // Chunk size must be >= 8 and odd number (Assumption A01)
-  // For best performance configure chunk size as close as possible to total number of chunks
-  // NOTE! Never modify config without erasing destination area first!
-  //       For this - use cleanUpEeprom()
-  PrefOneByte(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk);
-
-  // For 1024 size 32 is recommended
-  // For 4096 size 64 is recommended
-  // For 16384 size 128 is recommended
-  //static const uint8_t CHUNK_SIZE_MAGNITUDE = 5; // {min 3, max 8} 5 for 32, 6 for 64, 7 for 128
+    // Get last error happened after load / save / erase
+    Error getLastError() {
+      return _lastError;
+    }
   
-  //static const uint8_t EEPROM_STARTING_CHUNK = 0;
-  //static const uint8_t EEPROM_LAST_CHUNK = EEPROMHelper::EEPROM_SIZE / (1 << CHUNK_SIZE_MAGNITUDE) - 1;
-
-
-  enum Error { OK,
-                E01_INIT_ERROR,
-                E02_CONFIG_ERROR_1, E03_CONFIG_ERROR_2, E04_CONFIG_ERROR_3,
-                E05_ALG_ERROR_1, E06_ALG_ERROR_2,
-                E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E08_ALG_ERROR_ADDRESS__BAD_POSNO, E09_ALG_ERROR_BAD_ADDRESS,
-                E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
-                E11_WRITE_ALG_ERR_1,
-                E12_WRITE_ALG_ERR_2,
-                E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1,
-                E14_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
-                E15_ERASE_WHOLE_CORRUPTED_1,
-                E16_ERASE_WHOLE_CORRUPTED_2,
-                E17_ERASE_WHOLE_CORRUPTED_3
-             };
-
-
-  // Read latest `active` Data Byte, returns 0xFF
-  uint8_t load();
-
-  // Validate if EEPROM isEmpty
-  bool isEmpty();
-
-  // Save preferences
-  bool save(const uint8_t dataByte);
-
-  // Check if last operation succeeded
-  bool isSuccess() {
-    return _lastError == OK;
-  }
-
-  // Get last error happened after load / save
-  Error getLastError() {
-    return _lastError;
-  }
-
-  // Erase this preference storage area in EEPROM
-  // Use after configuration changed and EEPROM is not empty
-  bool eraseStorage();
-
-  //static const uint8_t CHUNK_SIZE = 1 << CHUNK_SIZE_MAGNITUDE;
+    // Erase this preference storage area in EEPROM
+    // Use after configuration changed and EEPROM is not empty
+    bool eraseStorage();
 
   private:
+    // Optional Safety Checks (Algorithm checks)
+    static constexpr bool __SC_O = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 1);
+    // Safety Check Logic Assumptions
+    static constexpr bool __SC_LA = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 2);
+    // Safety Check Address Before every read/erase/write operation
+    // Make sure that we are not writing to area of EEPROM not configured for
+    //   this Performance Storage
+    static constexpr bool __SC_ADDR = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 3);
 
-    // Reads latest `active` Data Byte, returns 0xFF if no data present in EEPROM yet or error occurs.
-    uint8_t _load(bool &isEEPROMEmpty, Error &error);
-    // Save preferences
-    bool _save(const uint8_t dataByte, Error &error);
 
+    // If configError != CONFIG_OK - no method will execute, and will return error = E01_CONFIG_ERROR
     ConfigError _configError;
+    uint8_t _chunkSize = 0, _startChunk = 0, _endChunk = 0;
+    
     Error _lastError = OK;
 
-    bool _initialized = false;
+    void _constructor(uint8_t chunkSize, uint8_t startChunk, uint8_t endChunk);
+
+    Error _preOperationCheck();
+
+    // Reads latest `active` Data Byte, returns 0xFF if no data present in EEPROM yet or error occurs.
+    Error _load(bool &isEEPROMEmpty, uint8_t &value);
+    // Save preferences
+    Error _save(const uint8_t dataByte);
+
+    bool _loaded = false;
     bool _isEmpty;
     uint8_t _cachedDataByte;
-  
-    uint8_t _chunkSize = 0, _startChunk = 0, _endChunk = 0;
   
     // In case some faulty code still uses this address - the chances are it is above physical address and will not corrupt actual EEPROM
     // We use F0 not FF because when incremented by misstake by 1 or other small number - it will not overflow to 0 or some other valid address.
     // TODO: Usage of this constant assumes that EEPROM size is not bigger then 0xFFF0, when rounded to available sizes it is 32KB
     //       If more is required - we can extend size of it to uint32_t 
     //                             or implement separate flag (its better from performance and ram usage perspectives)
-    static const uint16_t INVALID_ADDRESS = 0xFFF0; 
+    static constexpr uint16_t INVALID_ADDRESS = 0xFFF0; 
 
-    static const uint8_t FAULT_DATA_VALUE = 0xFF;
+    bool __validateAssumptionA00();
+    uint16_t calcStorageEndAddr(uint8_t chunkSize, uint8_t endChunk);
+    uint8_t __calcRedundancyByte(uint8_t dByte);
+    // Make sure address is within Storage area (as per configuration)
+    bool __isAddressValid(uint16_t addr);
+    bool __isValidChunkNo(uint8_t chunkNo);
+    bool __areValidDAndRBytes(uint8_t dByte, uint8_t rByte);
 
-    uint8_t _calcRedundancyByte(uint8_t dByte);
-    void _validateAssumptionA00(Error &error);
-    bool _isValidChunkNo(uint8_t chunkNo);
-    bool _areValidDAndRBytes(uint8_t dByte, uint8_t rByte);
-
-    // FIXME replace posNo with locationOffset in whole code (posNo is confusing) and location concept is described in docs
-    uint16_t _calcAndValidateDataByteAddress(uint8_t chunkNo, uint8_t locationOffset, Error &error);
-    void _findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLocationOffset, bool &isEEPROMEmpty, Error &error);
-    uint8_t _readAndValidateLocation(uint8_t chunkNo, uint8_t locationOffset, Error &error);
+    Error _validateDataByteAddress(uint8_t chunkNo, uint8_t locationOffset);
+    uint16_t __calcDataByteAddress(uint8_t chunkNo, uint8_t locationOffset);
+    
+    Error _findActiveLocation(uint8_t &activeChunkNo, uint8_t &activeLocationOffset, bool &isEEPROMEmpty);
+    Error _readAndValidateLocation(uint8_t chunkNo, uint8_t locationOffset, uint8_t &value);
 
     // 1) We do not erase first location of active chunk because it is needed to detect that chunk was busy
     // 2) FIXME: Make sure to RenderFirstLocationInvalid (this is extra safety to prevent this location from valid use)
-    void _eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalidGoingBackward(uint8_t activeChunkNo, Error &error);
+    Error _eraseActiveChunkExceptFirstLocationRenderFirstLocationInvalidGoingBackward(uint8_t activeChunkNo);
 
     // 1) We do not erase first byte in first chunk because it is already erased by main logic
-    void _eraseEveryFirstLocationOfEveryChunkGoingBackwards(Error &error);
+    Error _eraseEveryFirstLocationOfEveryChunkGoingBackwards();
 
-    static uint8_t _readByte(uint16_t addr) {
-      return EEPROMHelper::readByte(addr);
+    Error _readByte(uint16_t addr, uint8_t &value) {
+      if (__SC_ADDR && !__isAddressValid(addr)) return Exx_ADDR_OUT_OF_RANGE;
+      value = EEPROMHelper::readByte(addr);
+      return OK;
     }
 
-    static void _eraseByte(uint16_t addr) {
+    Error _eraseByte(uint16_t addr) {
+      if (__SC_ADDR && !__isAddressValid(addr)) return Exx_ADDR_OUT_OF_RANGE;
       EEPROMHelper::eraseByte(addr);
+      return OK;
     }
 
-    static void _bitwiseAndByte(uint16_t addr, uint8_t value) {
+    Error _eraseByteIfNotEmpty(uint16_t addr) {
+      if (__SC_ADDR && !__isAddressValid(addr)) return Exx_ADDR_OUT_OF_RANGE;
+      EEPROMHelper::eraseByteIfNotEmpty(addr);
+      return OK;
+    }
+
+    Error _bitwiseAndByte(uint16_t addr, uint8_t value) {
+      if (__SC_ADDR && !__isAddressValid(addr)) return Exx_ADDR_OUT_OF_RANGE;
       EEPROMHelper::bitwiseAndByte(addr, value);
+      return OK;
     }
 };
 

@@ -33,7 +33,7 @@ void setup() {
   Serial.print("Preferences loaded: "); Serial.println(prefByte, HEX);
 
   // modify preferences here
-  if (prefByte == 0xFF) { // it was empty
+  if (preferences.isEmpty()) { // EEPROM is empty (was never written to)
     prefByte = 0x10; // set to default config
   }
   

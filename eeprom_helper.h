@@ -20,12 +20,12 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
-class EEPROMHelper {
+class EEPROMHelper final {
 
   public:
 
-    static const uint16_t EEPROM_SIZE = E2END + 1;
-    static const uint8_t EMPTY_BYTE = 0xFF;
+    static constexpr uint16_t EEPROM_SIZE = E2END + 1;
+    static constexpr uint8_t EMPTY_VALUE = 0xFF;
 
     static bool isBusy();
 
