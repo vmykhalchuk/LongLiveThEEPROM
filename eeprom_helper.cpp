@@ -27,7 +27,7 @@ void EEPROMHelper::eraseByte(uint16_t addr) {
   // Set address
   EEAR = addr;
 
-  EEDR = EMPTY_BYTE; // For simavr only, no effect on real hardware
+  EEDR = EMPTY_VALUE; // For simavr only, no effect on real hardware
 
   // Set erase-only mode (EEPM1:0 = 01)
   EECR = (EECR & ~((1 << EEPM1) | (1 << EEPM0))) | (1 << EEPM0);
@@ -44,7 +44,7 @@ void EEPROMHelper::eraseByte(uint16_t addr) {
 }
 
 void EEPROMHelper::eraseByteIfNotEmpty(uint16_t addr) {
-  if (readByte(addr) != EMPTY_BYTE) {
+  if (readByte(addr) != EMPTY_VALUE) {
     eraseByte(addr);
   }
 }

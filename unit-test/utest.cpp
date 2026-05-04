@@ -26,11 +26,22 @@ void UTest::dumpEEPROMToSerial(uint16_t limit) {
 }
 
 void UTest::terminateSimAvrSimulation() {
-  // FIXME Doesn't work - investigate why
   cli();                // Disable interrupts
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   sleep_enable();
   sleep_cpu();          // Simulator sees interrupts are off + sleep = Exit
+}
+
+#define SIMAVR_CMD_WRITE   _SFR_IO8(0x20)
+#define SIMAVR_CMD_EXIT    0x11
+void UTest::terminateSimAvrSimulationV2() {
+  cli();
+  // This tells simavr to shut down immediately
+  SIMAVR_CMD_WRITE = SIMAVR_CMD_EXIT;
+  
+  // Fallback for real hardware
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_mode();
 }
 
 void UTest::terminateSimulation(int exitCode) {
