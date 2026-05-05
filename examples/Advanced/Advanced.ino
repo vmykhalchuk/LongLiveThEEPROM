@@ -16,6 +16,12 @@
 //        chunkSize should be odd number and greater than 8
 //        startChunk - to offset from beginning of EEPROM, make it other than 0
 //        endChunk - last chunk to use for this Storage
+// NOTE: Make sure EEPROM Area is empty and does not contain garbage - otherwise library will fail to work
+
+// [ERASING]
+// There are two ways to erase:
+//   - preferences1.eraseStorage() - best solution - it will make sure that area of EEPROM designated for this particular storage is erased
+//   - EEPROMHelper::nukeWholeEEPROM() - as name suggests - it will erase every single byte of EEPROM watchout for it!
 
 // first half of 1K EEPROM
 PrefOneByteFeather preferences1(32, 0, 15);

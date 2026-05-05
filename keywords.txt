@@ -21,6 +21,7 @@ eraseByte		KEYWORD2
 eraseByteIfNotEmpty	KEYWORD2
 bitwiseAndByte		KEYWORD2
 readByte		KEYWORD2
+nukeWholeEEPROM		KEYWORD2
 
 # PerfOneByte
 load			KEYWORD2
