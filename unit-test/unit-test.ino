@@ -94,10 +94,9 @@ void testHappyScenario() {
 
   // Read value back
   data = config1.load();
-  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertTrue(config1.isSuccess());
   _assertFalse(config1.isEmpty());
   _assertEquals(0x22, data);
-
 }
 
 void testSimplifiedMethods() {
@@ -118,7 +117,7 @@ void testSimplifiedMethods() {
 void testSimplifiedMethods_IsSuccess() {
   PrefOneByte config1;
   config1.load();
-  _assertEquals(PrefOneByte::OK, config1.getLastError());
+  _assertEquals(PREF_ONE_BYTE::OK, config1.getLastError());
   _assertTrue(config1.isSuccess()); // Success is directly coupled to lastError
 }
 
@@ -164,18 +163,18 @@ void testFaultyConfig() {
 
   uint8_t p = pref1.load();
   _assertFalse(pref1.isSuccess());
-  _assertEquals(PrefOneByte::E01_CONFIG_ERROR, pref1.getLastError());
+  _assertEquals(PREF_ONE_BYTE::E01_CONFIG_ERROR, pref1.getLastError());
   _assertEquals(0xFF, p);
 
   bool res = pref1.save(0x01);
   _assertFalse(res);
   _assertFalse(pref1.isSuccess());
-  _assertEquals(PrefOneByte::E01_CONFIG_ERROR, pref1.getLastError());
+  _assertEquals(PREF_ONE_BYTE::E01_CONFIG_ERROR, pref1.getLastError());
 
   res = pref1.eraseStorage();
   _assertFalse(res);
   _assertFalse(pref1.isSuccess());
-  _assertEquals(PrefOneByte::E01_CONFIG_ERROR, pref1.getLastError());
+  _assertEquals(PREF_ONE_BYTE::E01_CONFIG_ERROR, pref1.getLastError());
 }
 
 void testInactiveChunkFirstLocationIsInvalidatedWithItsValueEqual0x00() {
