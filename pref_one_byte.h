@@ -27,37 +27,46 @@
 // It is possible to define that only part of EEPROM is used for this storage with help of parameterized constructor.
 // NB: Make sure to erase EEPROM when config changes to avoid library failures
 
-// 0 - No Safety net
-// 1 - Optional checks
-// 2 - Algorithmic checks (they are covered by Unit tests and general testing)
-// 3 - Paranoic checks (for absolute realiability - not to mess with EEPROM)
-static constexpr uint8_t PREF_ONE_BYTE_SAFETY_CHECK_LEVEL = 2;
+namespace PREF_ONE_BYTE {
+  
 
+enum ConfigError {
+  CONFIG_OK, CE_START_CHUNK_ERROR, CE_CHUNK_SIZE_ERROR, CE_END_CHUNK_ERROR, CE_ASSUMPTION_FAILS, CE_UNIMPLEMENTED, CE_UNKNOWN_ERROR
+};
+
+enum Error { OK,
+              E01_CONFIG_ERROR,
+              E02_CONFIG_ERROR_1, E03_CONFIG_ERROR_2, E04_CONFIG_ERROR_3,
+              E05_ALG_ERROR_1, E06_ALG_ERROR_2,
+              E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E08_ALG_ERROR_ADDRESS__BAD_LOCATION_OFFSET, E09_ALG_ERROR_BAD_ADDRESS,
+              E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
+              E11_WRITE_ALG_ERR_1,
+              E12_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1,
+              E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
+              E14_ERASE_WHOLE_CORRUPTED_1,
+              E15_ERASE_WHOLE_CORRUPTED_2,
+              E16_ERASE_WHOLE_CORRUPTED_3,
+              Exx_ADDR_OUT_OF_RANGE
+           };
+
+// SAFETY CHECK LEVEL
+// 0 - No Safety net
+constexpr int SC_LVL0_NO_SAFETY = 0;
+// 1 - Optional checks
+constexpr int SC_LVL1_ONLY_OPTIONAL = 1;
+// 2 - + Algorithmic checks (they are covered by Unit tests and general testing)
+constexpr int SC_LVL2_OPTIONAL_AND_ALG_CHECKS = 2;
+// 3 - + Paranoic checks (for absolute realiability - not to mess with EEPROM)
+//       Every erase/write operation is monitored to be within designated Storage space
+constexpr int SC_LVL3_ALL_AKA_PARANOIC = 3;
+
+template <int SC_LVL = SC_LVL2_OPTIONAL_AND_ALG_CHECKS>
 class PrefOneByte final {
 
   public:
 
     static constexpr auto& EMPTY_VALUE = EEPROMHelper::EMPTY_VALUE;
   
-    enum ConfigError {
-      CONFIG_OK, CE_START_CHUNK_ERROR, CE_CHUNK_SIZE_ERROR, CE_END_CHUNK_ERROR, CE_ASSUMPTION_FAILS, CE_UNIMPLEMENTED, CE_UNKNOWN_ERROR
-    };
-  
-    enum Error { OK,
-                  E01_CONFIG_ERROR,
-                  E02_CONFIG_ERROR_1, E03_CONFIG_ERROR_2, E04_CONFIG_ERROR_3,
-                  E05_ALG_ERROR_1, E06_ALG_ERROR_2,
-                  E07_ALG_ERROR_ADDRESS__BAD_CHUNKNO, E08_ALG_ERROR_ADDRESS__BAD_LOCATION_OFFSET, E09_ALG_ERROR_BAD_ADDRESS,
-                  E10_READ_EEPROM_CORRUPTED_REDUNDANCY_CHECK_ERROR,
-                  E11_WRITE_ALG_ERR_1,
-                  E13_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_1, // FIXME
-                  E14_ERASE_ACTIVE_CHUNK_EEPROM_CORRUPTED_2,
-                  E15_ERASE_WHOLE_CORRUPTED_1,
-                  E16_ERASE_WHOLE_CORRUPTED_2,
-                  E17_ERASE_WHOLE_CORRUPTED_3,
-                  Exx_ADDR_OUT_OF_RANGE
-               };
-
     // Default constructor assumes whole EEPROM will be used as a storage
     PrefOneByte();
     
@@ -83,11 +92,15 @@ class PrefOneByte final {
       return _lastError == OK;
     }
 
+    bool isConfigOK() {
+      return _configError == CONFIG_OK;
+    }
+
     // Returns Config Error (when wrong Constructor parameters provided)
     ConfigError getConfigError() {
       return _configError;
     }
-  
+
     // Get last error happened after load / save / erase
     Error getLastError() {
       return _lastError;
@@ -99,13 +112,13 @@ class PrefOneByte final {
 
   private:
     // Optional Safety Checks (Algorithm checks)
-    static constexpr bool __SC_O = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 1);
+    static constexpr bool __SC_O = (SC_LVL >= 1);
     // Safety Check Logic Assumptions
-    static constexpr bool __SC_LA = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 2);
+    static constexpr bool __SC_LA = (SC_LVL >= 2);
     // Safety Check Address Before every read/erase/write operation
     // Make sure that we are not writing to area of EEPROM not configured for
     //   this Performance Storage
-    static constexpr bool __SC_ADDR = (PREF_ONE_BYTE_SAFETY_CHECK_LEVEL >= 3);
+    static constexpr bool __SC_ADDR = (SC_LVL >= 3);
 
 
     // If configError != CONFIG_OK - no method will execute, and will return error = E01_CONFIG_ERROR
@@ -136,7 +149,6 @@ class PrefOneByte final {
 
     bool __validateAssumptionA00();
     uint16_t calcStorageEndAddr(uint8_t chunkSize, uint8_t endChunk);
-    uint8_t __calcRedundancyByte(uint8_t dByte);
     // Make sure address is within Storage area (as per configuration)
     bool __isAddressValid(uint16_t addr);
     bool __isValidChunkNo(uint8_t chunkNo);
@@ -179,5 +191,11 @@ class PrefOneByte final {
       return OK;
     }
 };
+
+}
+
+using PrefOneByte = PREF_ONE_BYTE::PrefOneByte<>;
+using PrefOneByteFeather = PREF_ONE_BYTE::PrefOneByte<PREF_ONE_BYTE::SC_LVL0_NO_SAFETY>;
+using PrefOneByteParanoia = PREF_ONE_BYTE::PrefOneByte<PREF_ONE_BYTE::SC_LVL3_ALL_AKA_PARANOIC>;
 
 #endif

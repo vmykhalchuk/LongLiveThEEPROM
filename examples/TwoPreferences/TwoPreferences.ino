@@ -1,12 +1,9 @@
 #include <pref_one_byte.h>
 
-PrefOneByte::ConfigError pref1ConfigError;
-PrefOneByte::ConfigError pref2ConfigError;
-
 // first half of 1K EEPROM
-PrefOneByte preferences1(32, 0, 15, pref1ConfigError);
+PrefOneByte preferences1(32, 0, 15);
 // second half of 1K EEPROM
-PrefOneByte preferences2(32, 16, 31, pref2ConfigError);
+PrefOneByte preferences2(32, 16, 31);
 
 uint8_t pref1Byte;
 uint8_t pref2Byte;
@@ -15,11 +12,11 @@ void setup() {
   Serial.begin(9600);
 
   // Validate if configuration is not broken
-  if (pref1ConfigError != PrefOneByte::CONFIG_OK) {
+  if (preferences1.isConfigOK()) {
     Serial.println("Error in Config of Preferences 1");
     while (1) {}; // halt if bad config
   }
-  if (pref2ConfigError != PrefOneByte::CONFIG_OK) {
+  if (preferences2.isConfigOK()) {
     Serial.println("Error in Config of Preferences 2");
     while (1) {}; // halt if bad config
   }

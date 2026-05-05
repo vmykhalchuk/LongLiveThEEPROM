@@ -4,7 +4,7 @@ Maximize Arduino EEPROM lifespan through wear-leveling and data validation.
 
 Standard EEPROM is rated for ~100K writes. LongLiveThEEPROM implements a Ring Buffer strategy
 that distributes writes across the available memory. When tracking a single byte on an Arduino Nano,
-this can extend life expectancy by up to 512x (effectively 51.2M writes).
+this can extend life expectancy by up to 500x (effectively ~50M writes on Uno/Nano and ~200M on Mega).
 
 ### Key Features:
 

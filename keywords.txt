@@ -8,6 +8,8 @@
 
 EEPROMHelper		KEYWORD1
 PrefOneByte		KEYWORD1
+PrefOneByteFeather	KEYWORD1
+PrefOneByteParanoia	KEYWORD1
 
 ###########################################
 # Methods and Functions (KEYWORD2)
@@ -22,10 +24,12 @@ readByte		KEYWORD2
 
 # PerfOneByte
 load			KEYWORD2
-save			KEYWORD2
 isEmpty			KEYWORD2
 isSuccess		KEYWORD2
 getLastError		KEYWORD2
+save			KEYWORD2
+isConfigOK		KEYWORD2
+getConfigError		KEYWORD2
 eraseStorage		KEYWORD2
 
 ###########################################

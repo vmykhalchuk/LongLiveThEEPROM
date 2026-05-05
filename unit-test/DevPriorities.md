@@ -9,8 +9,9 @@
 
 ### NOT URGENT : IMPORTANT
 
-  * Put code on diet (add macros to disable safety checks)
- 
+  * Add possibility for user to create two/four preferences with simple calls (current TwoPreferences example is unclear for novice user)
+  * Add constructor to let user define startOffset vs startChunk
+
   * Add Examples
     * Simple example to configure 1 Byte storage
     * Example to configure multiple 1 Byte storages
