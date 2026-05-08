@@ -1,4 +1,4 @@
-# 💾 LongLiveThEEPROM
+# 𒁈💾 LongLiveThEEPROM
 
 > **Status:** `STABLE`  
 > **Target:** AVR / Arduino Architecture  
@@ -34,7 +34,19 @@ To detect "stuck bits" (common in aging floating-gate transistors), we store an 
 
 ---
 
-### 💻 Implementation
+### ⚙ Implementation details
+
+Area designated for Preference Storage is split on chunks. Each chunk is split on locations 2 bytes each.
+![EEPROM Layout](doc/EEPROM-Layout.svg "Sample layout")
+
+
+---
+
+### 💻 How to use it
+
+Find `LongLiveThEEPROM` library in Arduino library manager and install it.
+
+Use code below or any check other examples.
 
 ```cpp
 #include <pref_one_byte.h>
