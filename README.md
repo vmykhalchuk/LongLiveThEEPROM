@@ -19,7 +19,7 @@ Regular use of Standard Arduino EEPROM library results in hammering single cell 
 | **Integrity Check** | None | Bit-Inversion Redundancy |
 | **Failure Mode** | Silent Corruption | Active Validation Trigger |
 
-[![Open Calculator](https://img.shields.io/badge/Life%20Expectancy%20Calculator-blue?style=plastic&logo=opensourcehardware&logoColor=%23FFC0CB)](https://vmykhalchuk.github.io/pinkyvolt/toolkit/picoform.html?config=eyJ0aXRsZSI6ICJMaWZlIEV4cGVjdGFuY3kgSW5jcmVhc2UiLCJpdGVtcyI6IFtbInNlbGVjdD1Cb2FyZCIsIlVubz0xMDI0IiwiTWVnYT00MDk2Il0sWyJudW1iZXI9QXJlYXMiLCJtaW49MSIsIm1heD0xMCIsInZhbHVlPTEiXV0sInJlc3VsdCI6ICIneCcrTWF0aC5yb3VuZCgkMS8kMi8yKjEwKS8xMCsnIHRpbWVzJyJ9)
+[![Open Calculator](https://img.shields.io/badge/Life%20Expectancy%20Calculator-blue?style=plastic&logo=opensourcehardware&logoColor=%23FFC0CB)](https://vmykhalchuk.github.io/pf.html?config=eyJ0aXRsZSI6ICJMaWZlIEV4cGVjdGFuY3kgSW5jcmVhc2UiLCJpdGVtcyI6IFtbInNlbGVjdD1Cb2FyZCIsIlVubz0xMDI0IiwiTWVnYT00MDk2Il0sWyJudW1iZXI9QXJlYXMiLCJtaW49MSIsIm1heD0xMCIsInZhbHVlPTEiXV0sInJlc3VsdCI6ICIneCcrTWF0aC5yb3VuZCgkMS8kMi8yKjEwKS8xMCsnIHRpbWVzJyJ9)
 
 
 ---
