@@ -31,7 +31,8 @@ class EEPROMHelper final {
 
     static void eraseByte(uint16_t addr);
 
-    static void eraseByteIfNotEmpty(uint16_t addr);
+    // returns true if byte was erased, false if was already empty
+    static bool eraseByteIfNotEmpty(uint16_t addr);
 
     // Clear bits in byte by address.
     // Effectively performs AND bitwise operation against byte in EEPROM.
@@ -40,6 +41,10 @@ class EEPROMHelper final {
     static void bitwiseAndByte(uint16_t addr, uint8_t mask);
   
     static uint8_t readByte(uint16_t addr);
+
+    // !!! Erases every single byte of EEPROM Area
+    // returns number of bytes erased (0 if EEPROM was empty)
+    static uint16_t nukeWholeEEPROM();
 
   private:
 

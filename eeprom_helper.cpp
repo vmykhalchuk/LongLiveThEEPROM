@@ -43,10 +43,12 @@ void EEPROMHelper::eraseByte(uint16_t addr) {
   SREG = sreg;
 }
 
-void EEPROMHelper::eraseByteIfNotEmpty(uint16_t addr) {
+bool EEPROMHelper::eraseByteIfNotEmpty(uint16_t addr) {
   if (readByte(addr) != EMPTY_VALUE) {
     eraseByte(addr);
+    return true;
   }
+  return false;
 }
   
 void EEPROMHelper::bitwiseAndByte(uint16_t addr, uint8_t mask) {
@@ -82,4 +84,14 @@ uint8_t EEPROMHelper::readByte(uint16_t addr) {
   EEAR = addr;
   EECR |= (1 << EERE);
   return EEDR;
+}
+
+uint16_t EEPROMHelper::nukeWholeEEPROM() {
+  uint16_t bytesErased = 0;
+  for (uint16_t addr = 0; addr <= E2END; addr++) {
+    if (eraseByteIfNotEmpty(addr)) {
+      bytesErased++;
+    }
+  }
+  return bytesErased;
 }

@@ -1,47 +1,70 @@
-# LongLiveThEEPROM
+# 💾 LongLiveThEEPROM
 
-Maximize Arduino EEPROM lifespan through wear-leveling and data validation.
+> **Status:** `STABLE`  
+> **Target:** AVR / Arduino Architecture  
+> **Objective:** Maximize Arduino EEPROM lifespan
 
-Standard EEPROM is rated for ~100K writes. LongLiveThEEPROM implements a Ring Buffer strategy
-that distributes writes across the available memory. When tracking a single byte on an Arduino Nano,
-this can extend life expectancy by up to 500x (effectively ~50M writes on Uno/Nano and ~200M on Mega).
+Standard AVR EEPROM is rated for approximately **100,000** write/erase cycles. **LongLiveThEEPROM** bypasses this physical bottleneck using a **Ring Buffer Wear-Leveling** strategy, distributing the electron-tunneling stress across the entire silicon surface.
 
-### Key Features:
+Regular use of Standard Arduino EEPROM library results in hammering single cell in EEPROM (you write and read to/from same address). With this library you prevent hammering EEPROM and distributing load across whole area.
 
-* Wear-Leveling: Prevents hardware failure by spreading write cycles.
+---
 
-* Data Integrity: Integrated validation ensures your app gets notified when EEPROM fails.
+### 🛠️ Technical Specifications
 
-Validation is implemented by storing inverted redundancy value - this maximizes chances to
-detect EEPROM bit-rot or 'stuck-bits'.
+| Metric | Standard EEPROM | With LongLiveThEEPROM |
+| :--- | :--- | :--- |
+| **Endurance (Uno/Nano)** | ~100k cycles | **~50M writes** (500x Boost) |
+| **Endurance (Mega)** | ~100k cycles | **~200M writes** (2000x Boost) |
+| **Integrity Check** | None | Bit-Inversion Redundancy |
+| **Failure Mode** | Silent Corruption | Active Validation Trigger |
 
-### Simple usage
+---
 
-``` C++
+### 🧠 Core Mechanics
+
+#### 🔄 Wear-Leveling (The Ring Buffer)
+Instead of hammering address `0x00` into oblivion, the library treats a allocated memory block as a continuous loop. Each write operation increments a head pointer to the next cell, ensuring every byte of available space is utilized equally before any single cell is rewritten.
+
+#### 🛡️ Bit-Rot Protection
+To detect "stuck bits" (common in aging floating-gate transistors), we store an **Inverted Redundancy Value**:
+* **Data Byte:** `B`
+* **Validation Byte:** `~B` (Bitwise NOT)
+* This maximizes the detection of hardware-level failures where bits become physically unable to flip state.
+
+---
+
+### 💻 Implementation
+
+```cpp
 #include <pref_one_byte.h>
 
 PrefOneByte preferences;
 
-uint8_t prefByte;
-
 void setup() {
-  Serial.begin(9600);
+  uint8_t prefByte = preferences.load(); // Load one byte from storage area (by default whole EEPROM is allocated to this Preference)
 
-  // Load preferences byte from EEPROM
-  prefByte = preferences.load();
-
-  Serial.print("Preferences loaded: "); Serial.println(prefByte, HEX);
-
-  // modify preferences here
-  if (preferences.isEmpty()) { // EEPROM is empty (was never written to)
-    prefByte = 0x10; // set to default config
+  if (preferences.isEmpty()) {
+    prefByte = 0x10; // Set Default value at first run or after EEPROM was erased
   }
   
-  // Save preferences byte to EEPROM
-  preferences.save(prefByte);
+  preferences.save(prefByte); // Store preference into storage area
 }
 
 void loop() {
 }
-
 ```
+
+### ⚖️ Final Verdict
+Writing to EEPROM inside a `loop()` is usually a "death sentence" for your MCU.
+LongLiveThEEPROM provides the abstraction layer necessary to turn a potential hardware failure into decades of reliable operation.
+
+### 📂 FAQ
+  > **Q: What if I need more then one byte to store?**
+  > **A:** You can use multiple `PrefOneByte` storages, see `TwoPreferences` example.
+
+  > **Q: What if I need some of EEPROM area to be allocated to my needs?**
+  > **A:** This can be easily achieved by custom configuration of `PrefOneByte`, see `Advanced` example.
+
+  > **Q: How my sketch should know that EEPROM is corrupted?**
+  > **A:** After attempt to read/write to `PrefOneByte`, call `isSuccess()` method. If it returns false - most likely EEPROM is corrupted, or you logic was writing into storage area. `getLastError()` provides more detail error code on whats happened.

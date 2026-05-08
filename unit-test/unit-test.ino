@@ -1,3 +1,10 @@
+/*
+
+    ****** ATTENTION ATTENTION ATTENTION ******
+    ***** THIS SKETCH WILL EXHAUST EEPROM *****
+    ***** PREFER IT RUNNING IN EMULATOR ******
+
+*/
 #include <Arduino.h>
 #include "eeprom_helper.h"
 #include "pref_one_byte.h"
