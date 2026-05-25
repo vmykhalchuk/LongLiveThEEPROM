@@ -1,0 +1,5 @@
+{
+  "title": "Life Expectancy Increase",
+  "items": [["select=Board","Uno=1024","Mega=4096"],["number=Areas","min=1","max=10","value=1"]],
+  "result": "'x'+Math.round($1/$2/2*10)/10+' times'"
+}

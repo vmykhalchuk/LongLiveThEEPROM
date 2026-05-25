@@ -1,4 +1,4 @@
-# 💾 LongLiveThEEPROM
+# 𒁈💾 LongLiveThEEPROM
 
 > **Status:** `STABLE`  
 > **Target:** AVR / Arduino Architecture  
@@ -19,6 +19,9 @@ Regular use of Standard Arduino EEPROM library results in hammering single cell 
 | **Integrity Check** | None | Bit-Inversion Redundancy |
 | **Failure Mode** | Silent Corruption | Active Validation Trigger |
 
+[![Open Calculator](https://img.shields.io/badge/Life%20Expectancy%20Calculator-blue?style=plastic&logo=opensourcehardware&logoColor=%23FFC0CB)](https://vmykhalchuk.github.io/pf.html?config=eyJ0aXRsZSI6ICJMaWZlIEV4cGVjdGFuY3kgSW5jcmVhc2UiLCJpdGVtcyI6IFtbInNlbGVjdD1Cb2FyZCIsIlVubz0xMDI0IiwiTWVnYT00MDk2Il0sWyJudW1iZXI9QXJlYXMiLCJtaW49MSIsIm1heD0xMCIsInZhbHVlPTEiXV0sInJlc3VsdCI6ICIneCcrTWF0aC5yb3VuZCgkMS8kMi8yKjEwKS8xMCsnIHRpbWVzJyJ9)
+
+
 ---
 
 ### 🧠 Core Mechanics
@@ -34,7 +37,19 @@ To detect "stuck bits" (common in aging floating-gate transistors), we store an 
 
 ---
 
-### 💻 Implementation
+### ⚙ Implementation details
+
+Area designated for Preference Storage is split on chunks. Each chunk is split on locations 2 bytes each.
+![EEPROM Layout](doc/EEPROM-Layout.svg "Sample layout")
+
+
+---
+
+### 💻 How to use it
+
+Find `LongLiveThEEPROM` library in Arduino library manager and install it.
+
+Use code below or any check other examples.
 
 ```cpp
 #include <pref_one_byte.h>
