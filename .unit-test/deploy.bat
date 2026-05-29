@@ -1,4 +1,5 @@
 cd ../..
-tar -a -c -f LongLiveThEEPROM.zip LongLiveThEEPROM
-arduino-cli lib install --zip-path LongLiveThEEPROM.zip
+set LIB_NAME=LongLiveThEEPROM
+tar -a -c -f %LIB_NAME%.zip -X %LIB_NAME%/.unit-test/deploy.exclude.txt %LIB_NAME%
+arduino-cli lib install --zip-path %LIB_NAME%.zip
 pause
