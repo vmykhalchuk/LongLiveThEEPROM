@@ -2,25 +2,26 @@
 
 ### URGENT: IMPORTANT
 
+  * Remove support of AVR Boards that do not have EEPROM (currently it is still shown in arduino docs libraries)
   * Add unit tests covering all AVR MCUs
+  * Modify to store not single but configurable number of bytes
+    - why urgent: make it more flexible and useful
 
 ### URGENT: NOT IMPORTANT
 
 
 ### NOT URGENT : IMPORTANT
 
+
   * Add possibility for user to create two/four preferences with simple calls (current TwoPreferences example is unclear for novice user)
-  * Add constructor to let user define startOffset vs startChunk
+  * Add constructor to let user define startOffset vs startChunk to make configuration more flexible
 
   * Add Examples
-    * Simple example to configure 1 Byte storage
-    * Example to configure multiple 1 Byte storages
     * Example to clean-up EEPROM (when configuration change is needed)
+    * Add example on how to migrate storage changes (e.g. 1 area => 2 areas and keep first in first or second; or opposite 2 => 1 and do some compaction 2 bytes into 1, etc)
 
   * PERF OPTIM: When advancing to next location - invalidate previous one
        this will reduce number of erase instructions required to clean active chunk
-
-  * Modify to store not single but configurable number of bytes
 
   * Fix simavr bug where it doesn't erase byte to 0xFF instead it writes value stored in EEDR register
     * it is handled by https://github.com/buserror/simavr/blob/master/simavr/sim/avr_eeprom.c
