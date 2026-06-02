@@ -1,0 +1,5 @@
+.git/
+.gitignore
+build/
+LongLiveThEEPROM.ino
+.unit-test/

@@ -43,7 +43,7 @@
     - wsl --set-default Debian
 
 ### Install library from local source
-  - Use deploy.bat
+  - Use deploy-lib.bat
   - Or step by step:
     - Navigate to parent dir of LongLiveThEEPROM
     - Create zip
