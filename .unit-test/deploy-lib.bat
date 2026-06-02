@@ -1,4 +1,4 @@
-set LIB_NAME=PinkyvoltToolkit
+set LIB_NAME=LongLiveThEEPROM
 set UNIT_TEST_DIR=.unit-test
 
 rmdir /S /Q .build
